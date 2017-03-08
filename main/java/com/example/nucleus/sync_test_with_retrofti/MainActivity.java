@@ -1,9 +1,13 @@
 package com.example.nucleus.sync_test_with_retrofti;
 
+import android.content.Intent;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
-import android.util.Log;
-import android.widget.TextView;
+import android.view.View;
+import android.widget.AdapterView;
+import android.widget.ArrayAdapter;
+import android.widget.ListView;
+import android.widget.Toast;
 
 import java.util.List;
 
@@ -13,61 +17,56 @@ import retrofit2.Callback;
 import retrofit2.Response;
 import retrofit2.Retrofit;
 import retrofit2.converter.gson.GsonConverterFactory;
+import singleton.Singleton;
 
 public class MainActivity extends AppCompatActivity {
+
+
+    private ListView listView;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        final TextView textView = (TextView) findViewById(R.id.textView);
+        listView = (ListView) findViewById(R.id.listView);
 
+        registerForContextMenu(listView);
+
+
+    }
+
+
+    @Override
+    protected void onResume() {
         Retrofit retrofit = new Retrofit.Builder().baseUrl(NucleusService.BASE_URL).addConverterFactory(GsonConverterFactory.create()).build();
-
         NucleusService nucleusService = retrofit.create(NucleusService.class);
-
-        final Call<List<User>> requestListUser = nucleusService.getListaUser();
-
+        Call<List<User>> requestListUser = nucleusService.getListaUser();
 
         requestListUser.enqueue(new Callback<List<User>>() {
             @Override
             public void onResponse(Call<List<User>> call, Response<List<User>> response) {
                 if (!response.isSuccessful()){
-                    Log.i("Error", "Erro conexão banco");
+                    Toast.makeText(MainActivity.this, "Erro de acesso ao servidor", Toast.LENGTH_SHORT).show();
                 } else {
-                    List<User> lista = response.body();
-                    for (User user : lista){
-                        Log.i("Sucess", String.format("%s: %s, %s %s\n\n\n", user.name, user.email, user.cpf, user._id));
-                    }
+                    List<User> users = response.body();
+                    listView.setAdapter(new ArrayAdapter<>(MainActivity.this, android.R.layout.simple_list_item_1, users));
                 }
             }
 
             @Override
             public void onFailure(Call<List<User>> call, Throwable t) {
-                Log.i("Error", "Erro de conexão de internet\n" + t.getMessage());
+                Toast.makeText(MainActivity.this, "Erro de conexão com a internet", Toast.LENGTH_SHORT).show();
             }
         });
 
-
-        Call<User> requestSingleUser = nucleusService.getUser("58b04712d66cb900048562ef");
-
-        requestSingleUser.enqueue(new Callback<User>() {
+        listView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
             @Override
-            public void onResponse(Call<User> call, Response<User> response) {
-                if (!response.isSuccessful()){
-                    Log.i("Error", "Erro conexão banco");
-                } else {
-                   textView.setText("Olá " + response.body().name);
-                }
-            }
-
-            @Override
-            public void onFailure(Call<User> call, Throwable t) {
-                Log.i("Error", "Erro de conexão de internet\n" + t.getMessage());
+            public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
+                Singleton.getInstance().currentUser = (User) parent.getItemAtPosition(position);
+                startActivity(new Intent(MainActivity.this, FormActivity.class));
             }
         });
-
-
+        super.onResume();
     }
 }
